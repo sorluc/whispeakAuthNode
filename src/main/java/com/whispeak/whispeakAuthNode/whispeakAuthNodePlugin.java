@@ -11,7 +11,7 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2017-2019 ForgeRock AS.
+ * Copyright 2017-2022 ForgeRock AS.
  */
 
 package com.whispeak.whispeakAuthNode;
@@ -19,17 +19,11 @@ package com.whispeak.whispeakAuthNode;
 import java.util.Collections;
 import java.util.Map;
 
-//import javax.inject.Inject;
-
 import org.forgerock.openam.auth.node.api.AbstractNodeAmPlugin;
 import org.forgerock.openam.auth.node.api.Node;
-import org.forgerock.openam.plugins.PluginException;
-
-//import org.slf4j.Logger;
-//import org.slf4j.LoggerFactory;
 
 /**
- * Definition of an <a href="https://backstage.forgerock.com/docs/am/6/apidocs/org/forgerock/openam/auth/node/api/AbstractNodeAmPlugin.html">AbstractNodeAmPlugin</a>. 
+ * Definition of an <a href="https://backstage.forgerock.com/docs/am/7/apidocs/org/forgerock/openam/auth/node/api/AbstractNodeAmPlugin.html">AbstractNodeAmPlugin</a>. 
  * Implementations can use {@code @Inject} setters to get access to APIs 
  * available via Guice dependency injection. For example, if you want to add an SMS service on install, you 
  * can add the following setter:
@@ -41,7 +35,7 @@ import org.forgerock.openam.plugins.PluginException;
  * </code></pre>
  * So that you can use the addSmsService api to load your schema XML for example.
  * PluginTools javadoc may be found 
- * <a href="https://backstage.forgerock.com/docs/am/6/apidocs/org/forgerock/openam/plugins/PluginTools.html#addSmsService-java.io.InputStream-">here</a> 
+ * <a href="https://backstage.forgerock.com/docs/am/7/apidocs/org/forgerock/openam/plugins/PluginTools.html#addSmsService(java.io.InputStream)">here</a> 
  * <p>
  *     It can be assumed that when running, implementations of this class will be singleton instances.
  * </p>
@@ -72,43 +66,6 @@ public class whispeakAuthNodePlugin extends AbstractNodeAmPlugin {
 	protected Map<String, Iterable<? extends Class<? extends Node>>> getNodesByVersion() {
 		return Collections.singletonMap(whispeakAuthNodePlugin.currentVersion, 
 				Collections.singletonList(whispeakAuthNode.class));
-	}
-
-    /** 
-     * Handle plugin installation. This method will only be called once, on first AM startup once the plugin
-     * is included in the classpath. The {@link #onStartup()} method will be called after this one.
-     * 
-     * No need to implement this unless your AuthNode has specific requirements on install.
-     *
-	@Override
-	public void onInstall() throws PluginException {
-		super.onInstall();
-	}
-
-    /** 
-     * Handle plugin startup. This method will be called every time AM starts, after {@link #onInstall()},
-     * {@link #onAmUpgrade(String, String)} and {@link #upgrade(String)} have been called (if relevant).
-     * 
-     * No need to implement this unless your AuthNode has specific requirements on startup.
-     *
-     * @param startupType The type of startup that is taking place.
-     *
-	@Override
-	public void onStartup() throws PluginException {
-		super.onStartup();
-	}
-
-    /** 
-     * This method will be called when the version returned by {@link #getPluginVersion()} is higher than the
-     * version already installed. This method will be called before the {@link #onStartup()} method.
-     * 
-     * No need to implement this untils there are multiple versions of your auth node.
-     *
-     * @param fromVersion The old version of the plugin that has been installed.
-     */
-	@Override
-	public void upgrade(String fromVersion) throws PluginException {
-		super.upgrade(fromVersion);
 	}
 
     /** 
