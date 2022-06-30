@@ -19,14 +19,14 @@ package com.whispeak.whispeakAuthNode;
 import java.util.Collections;
 import java.util.Map;
 
-import javax.inject.Inject;
+//import javax.inject.Inject;
 
 import org.forgerock.openam.auth.node.api.AbstractNodeAmPlugin;
 import org.forgerock.openam.auth.node.api.Node;
 import org.forgerock.openam.plugins.PluginException;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+//import org.slf4j.Logger;
+//import org.slf4j.LoggerFactory;
 
 /**
  * Definition of an <a href="https://backstage.forgerock.com/docs/am/6/apidocs/org/forgerock/openam/auth/node/api/AbstractNodeAmPlugin.html">AbstractNodeAmPlugin</a>. 
@@ -92,7 +92,7 @@ public class whispeakAuthNodePlugin extends AbstractNodeAmPlugin {
      * No need to implement this unless your AuthNode has specific requirements on startup.
      *
      * @param startupType The type of startup that is taking place.
-     */
+     *
 	@Override
 	public void onStartup() throws PluginException {
 		super.onStartup();
