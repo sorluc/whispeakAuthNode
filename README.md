@@ -27,7 +27,7 @@ There is no specific build instruction.
 
 **How to use it**
 
-![ScreenShot](./example.png)
+![ScreenShot](./example1.png)
 
 
 **Warnings**
