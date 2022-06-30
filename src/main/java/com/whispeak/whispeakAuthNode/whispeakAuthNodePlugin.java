@@ -79,7 +79,7 @@ public class whispeakAuthNodePlugin extends AbstractNodeAmPlugin {
      * is included in the classpath. The {@link #onStartup()} method will be called after this one.
      * 
      * No need to implement this unless your AuthNode has specific requirements on install.
-     */
+     *
 	@Override
 	public void onInstall() throws PluginException {
 		super.onInstall();
@@ -105,7 +105,7 @@ public class whispeakAuthNodePlugin extends AbstractNodeAmPlugin {
      * No need to implement this untils there are multiple versions of your auth node.
      *
      * @param fromVersion The old version of the plugin that has been installed.
-     */	
+     */
 	@Override
 	public void upgrade(String fromVersion) throws PluginException {
 		super.upgrade(fromVersion);
