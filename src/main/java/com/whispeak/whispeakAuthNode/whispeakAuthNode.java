@@ -83,6 +83,75 @@ public class whispeakAuthNode extends AbstractDecisionNode {
         default String groupName() {
             return "zero-page-login";
         }
+
+        /**
+         * Whispeak customser ID
+         */
+        @Attribute(order = 400)
+        default String wsCustomer() {
+            return "forgerock";
+        }
+
+        /**
+         * Whispeak Applicatiion configuration to use
+         */
+        @Attribute(order = 500)
+        default String wsApplication() {
+            return "with-asr/with-asr-20-8-3";
+        }
+
+        /**
+         * Whispeak API base URI
+         */
+        @Attribute(order = 600)
+        default String wsBaseURI() {
+            return ".whispeak.io/v1/apps/";
+        }
+
+        /**
+         * Use Whispeak API with HTTPS
+         */
+        @Attribute(order = 700)
+            default boolean wsIsHTTPS() {
+                return false;
+            }
+
+        /**
+         * Whispeak Enroll URI
+         */
+        @Attribute(order = 800)
+        default String wsEnrollURI() {
+            return "/enroll";
+        }
+
+        /**
+         * Whispeak Authentication URI
+         */
+        @Attribute(order = 900)
+        default String wsAuthURI() {
+            return "/auth";
+        }
+
+        /**
+         * Defines the attribute in user profile where to store Whispeak user id
+         * jsonResultCheckVoice.id
+         */
+        @Attribute(order = 1000)
+        default String wsIdAttributeInProfile() {
+            return "fr-attr-istr2";
+        }
+
+        /**
+         * Defines the attribute in user profile where to store Whispeak Revoke links
+         * "api_link:"+jsonResultCheckVoice.revocation.api_link,
+         * "signature_secret_password:"+jsonResultCheckVoice.revocation.signature_secret_password,
+         * "ui_link:"+jsonResultCheckVoice.revocation.ui_link
+         */
+        @Attribute(order = 1000)
+        default String wsRevokeAttributeInProfile() {
+            return "fr-attr-imulti1";
+        }
+
     }
 
 
