@@ -51,15 +51,48 @@ import com.sun.identity.idm.IdUtils;
                configClass      = whispeakAuthNode.Config.class)
 public class whispeakAuthNode extends AbstractDecisionNode {
 
-    private final Pattern DN_PATTERN = Pattern.compile("^[a-zA-Z0-9]=([^,]+),");
+
     private final Logger logger = LoggerFactory.getLogger(whispeakAuthNode.class);
     private final Config config;
     private final Realm realm;
+
+    public enum whispeakAction {
+		/** Authenticate */
+		AUTH("Auth"),
+		/** Enroll */
+		ENROLL("ENROLL"),
+		/** UNENROLL */
+		UNENROLL("UNENROLL");
+
+		private String value;
+
+		/**
+		 * The constructor.
+		 * @param value the value as a string.
+		 */
+		whispeakAction(String value) {
+			this.value = value;
+		}
+
+		/**
+		 * Gets the action preference value.
+		 * @return the value.
+		 */
+		public String getValue() {
+			return value;
+		}
+	}
 
     /**
      * Configuration for the node.
      */
     public interface Config {
+
+    // To choose the action to perform with the node
+        @Attribute(order = 200)
+        default whispeakAction actionSelection() {
+            return whispeakAction.AUTH;
+        }
 
         /**
          * Whispeak APIP Key
