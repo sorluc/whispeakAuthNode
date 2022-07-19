@@ -60,50 +60,43 @@ public class whispeakAuthNode extends AbstractDecisionNode {
      * Configuration for the node.
      */
     public interface Config {
+
         /**
-         * The header name for zero-page login that will contain the identity's username.
+         * Whispeak APIP Key
          */
         @Attribute(order = 100)
-        default String usernameHeader() {
-            return "X-OpenAM-Username";
+        default String wsAPIKey() {
+            return "";
         }
 
         /**
-         * The header name for zero-page login that will contain the identity's password.
+         * Whispeak customer ID
          */
         @Attribute(order = 200)
-        default String passwordHeader() {
-            return "X-OpenAM-Password";
-        }
-
-        /**
-         * The group name (or fully-qualified unique identifier) for the group that the identity must be in.
-         */
-        @Attribute(order = 300)
-        default String groupName() {
-            return "zero-page-login";
-        }
-
-        /**
-         * Whispeak customser ID
-         */
-        @Attribute(order = 400)
         default String wsCustomer() {
             return "forgerock";
         }
 
         /**
-         * Whispeak Applicatiion configuration to use
+         * Whispeak Applicatiion to use
          */
-        @Attribute(order = 500)
+        @Attribute(order = 300)
         default String wsApplication() {
-            return "with-asr/with-asr-20-8-3";
+            return "with-asr";
+        }
+
+        /**
+         * Whispeak Configuration to use
+         */
+        @Attribute(order = 400)
+        default String wsAppConfig() {
+            return "with-asr-20-8-3";
         }
 
         /**
          * Whispeak API base URI
          */
-        @Attribute(order = 600)
+        @Attribute(order = 500)
         default String wsBaseURI() {
             return ".whispeak.io/v1/apps/";
         }
@@ -111,23 +104,26 @@ public class whispeakAuthNode extends AbstractDecisionNode {
         /**
          * Use Whispeak API with HTTPS
          */
-        @Attribute(order = 700)
+        @Attribute(order = 600)
             default boolean wsIsHTTPS() {
                 return false;
             }
 
         /**
-         * Whispeak Enroll URI
+         * Whispeak Enroll/UnEnroll voice URI
+         * Action depends on HTTP action : 
+         * POST: Enroll a voice signature
+         * DELETE: Un-enroll a voice signature
          */
-        @Attribute(order = 800)
+        @Attribute(order = 700)
         default String wsEnrollURI() {
             return "/enroll";
         }
 
         /**
-         * Whispeak Authentication URI
+         * Whispeak Authentication voice URI
          */
-        @Attribute(order = 900)
+        @Attribute(order = 800)
         default String wsAuthURI() {
             return "/auth";
         }
@@ -136,7 +132,7 @@ public class whispeakAuthNode extends AbstractDecisionNode {
          * Defines the attribute in user profile where to store Whispeak user id
          * jsonResultCheckVoice.id
          */
-        @Attribute(order = 1000)
+        @Attribute(order = 900)
         default String wsIdAttributeInProfile() {
             return "fr-attr-istr2";
         }
@@ -152,8 +148,24 @@ public class whispeakAuthNode extends AbstractDecisionNode {
             return "fr-attr-imulti1";
         }
 
-    }
+        /**
+         * Store Voice signature in FOrgeRock user's profile?
+         */
+        @Attribute(order = 1100)
+        default boolean wsStoreSignInFR() {
+            return false;
+        }
 
+        /**
+         * Defines the attribute in user profile where to store 
+         * Whispeak user's signature
+         */
+        @Attribute(order = 1200)
+        default String wsVoiceSignature() {
+            return "";
+        }
+
+    }
 
     /**
      * Create the node using Guice injection. Just-in-time bindings can be used to obtain instances of other classes

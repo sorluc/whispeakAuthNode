@@ -87,7 +87,7 @@ public class whispeakAuthNodePlugin extends AbstractNodeAmPlugin {
      * No need to implement this unless your AuthNode has specific requirements on startup.
      *
      * @param startupType The type of startup that is taking place.
-     */
+     *
     @Override
     public void onStartup() throws PluginException {
         super.onStartup();
@@ -100,7 +100,7 @@ public class whispeakAuthNodePlugin extends AbstractNodeAmPlugin {
      * No need to implement this untils there are multiple versions of your auth node.
      *
      * @param fromVersion The old version of the plugin that has been installed.
-     */	
+     */
 	@Override
 	public void upgrade(String fromVersion) throws PluginException {
 		super.upgrade(fromVersion);
