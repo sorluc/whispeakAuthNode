@@ -17,9 +17,6 @@
 
 package com.whispeak.whispeakAuthNode;
 
-import static org.forgerock.openam.auth.node.api.SharedStateConstants.PASSWORD;
-import static org.forgerock.openam.auth.node.api.SharedStateConstants.USERNAME;
-
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -56,32 +53,6 @@ public class whispeakAuthNode extends AbstractDecisionNode {
     private final Config config;
     private final Realm realm;
 
-    public enum whispeakAction {
-		/** Authenticate */
-		AUTH("Auth"),
-		/** Enroll */
-		ENROLL("ENROLL"),
-		/** UNENROLL */
-		UNENROLL("UNENROLL");
-
-		private String value;
-
-		/**
-		 * The constructor.
-		 * @param value the value as a string.
-		 */
-		whispeakAction(String value) {
-			this.value = value;
-		}
-
-		/**
-		 * Gets the action preference value.
-		 * @return the value.
-		 */
-		public String getValue() {
-			return value;
-		}
-	}
 
     /**
      * Configuration for the node.
@@ -89,10 +60,15 @@ public class whispeakAuthNode extends AbstractDecisionNode {
     public interface Config {
 
     // To choose the action to perform with the node
-        @Attribute(order = 200)
-        default whispeakAction actionSelection() {
-            return whispeakAction.AUTH;
+        @Attribute(order = 50)
+        default WhispeakAction actionSelection() {
+            return WhispeakAction.AUTH;
         }
+
+		@Attribute(order = 55)
+		String whispeakAction();
+
+
 
         /**
          * Whispeak APIP Key
@@ -198,9 +174,6 @@ public class whispeakAuthNode extends AbstractDecisionNode {
             return "";
         }
 
-
-
-
         /**
          * The script to send to client to record the voice to enroll
          *
@@ -255,5 +228,33 @@ public class whispeakAuthNode extends AbstractDecisionNode {
         }*/
         return goTo(false).build();
     }
+
+
+    public enum WhispeakAction {
+		/** Authenticate */
+		AUTH("Auth"),
+		/** Enroll */
+		ENROLL("Enroll"),
+		/** UNENROLL */
+		UNENROLL("Unenroll");
+
+		private String value;
+
+		/**
+		 * The constructor.
+		 * @param value the value as a string.
+		 */
+		WhispeakAction(String value) {
+			this.value = value;
+		}
+
+		/**
+		 * Gets the action preference value.
+		 * @return the value.
+		 */
+		public String getValue() {
+			return value;
+		}
+	}
 
 }
