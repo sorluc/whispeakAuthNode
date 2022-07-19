@@ -165,6 +165,28 @@ public class whispeakAuthNode extends AbstractDecisionNode {
             return "";
         }
 
+        /**
+         * The script to send to client to record the voice to enroll
+         *
+         * @return The script configuration.
+         */
+        @Attribute(order = 1300)
+        @ScriptContext(AUTHENTICATION_TREE_DECISION_NODE_NAME)
+        default Script wsEnrollScript() {
+            return Script.EMPTY_SCRIPT;
+        }
+
+        /**
+         * The script to send to client to record the voice to authenticate
+         *
+         * @return The script configuration.
+         */
+        @Attribute(order = 1300)
+        @ScriptContext(AUTHENTICATION_TREE_DECISION_NODE_NAME)
+        default Script wsAuthScript() {
+            return Script.EMPTY_SCRIPT;
+        }
+
     }
 
     /**
@@ -183,19 +205,10 @@ public class whispeakAuthNode extends AbstractDecisionNode {
 
     @Override
     public Action process(TreeContext context) throws NodeProcessException {
-        boolean hasUsername = context.request.headers.containsKey(config.usernameHeader());
-        boolean hasPassword = context.request.headers.containsKey(config.passwordHeader());
 
-        if (!hasUsername || !hasPassword) {
-            return goTo(false).build();
-        }
-
-        String username = context.request.headers.get(config.usernameHeader()).get(0);
-        String password = context.request.headers.get(config.passwordHeader()).get(0);
         AMIdentity userIdentity = IdUtils.getIdentity(username, realm.asDN());
         try {
-            if (userIdentity != null && userIdentity.isExists() && userIdentity.isActive()
-                    && isMemberOfGroup(userIdentity, config.groupName())) {
+            if (userIdentity != null && userIdentity.isExists() && userIdentity.isActive())) {
                 return goTo(true)
                         .replaceSharedState(context.sharedState.copy().put(USERNAME, username))
                         .replaceTransientState(context.transientState.copy().put(PASSWORD, password))
@@ -207,21 +220,4 @@ public class whispeakAuthNode extends AbstractDecisionNode {
         return goTo(false).build();
     }
 
-    private boolean isMemberOfGroup(AMIdentity userIdentity, String groupName) {
-        try {
-            Set<String> userGroups = userIdentity.getMemberships(IdType.GROUP);
-            for (String group : userGroups) {
-                if (groupName.equals(group)) {
-                    return true;
-                }
-                Matcher dnMatcher = DN_PATTERN.matcher(group);
-                if (dnMatcher.find() && dnMatcher.group(1).equals(groupName)) {
-                    return true;
-                }
-            }
-        } catch (IdRepoException | SSOException e) {
-            logger.warn("Could not load groups for user {}", userIdentity);
-        }
-        return false;
-    }
 }
