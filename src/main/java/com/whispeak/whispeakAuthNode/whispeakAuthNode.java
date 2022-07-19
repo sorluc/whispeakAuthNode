@@ -165,11 +165,14 @@ public class whispeakAuthNode extends AbstractDecisionNode {
             return "";
         }
 
+
+
+
         /**
          * The script to send to client to record the voice to enroll
          *
          * @return The script configuration.
-         */
+         *
         @Attribute(order = 1300)
         @ScriptContext(AUTHENTICATION_TREE_DECISION_NODE_NAME)
         default Script wsEnrollScript() {
@@ -180,12 +183,12 @@ public class whispeakAuthNode extends AbstractDecisionNode {
          * The script to send to client to record the voice to authenticate
          *
          * @return The script configuration.
-         */
+         *
         @Attribute(order = 1300)
         @ScriptContext(AUTHENTICATION_TREE_DECISION_NODE_NAME)
         default Script wsAuthScript() {
             return Script.EMPTY_SCRIPT;
-        }
+        }*/
 
     }
 
@@ -205,7 +208,7 @@ public class whispeakAuthNode extends AbstractDecisionNode {
 
     @Override
     public Action process(TreeContext context) throws NodeProcessException {
-
+/* 
         AMIdentity userIdentity = IdUtils.getIdentity(username, realm.asDN());
         try {
             if (userIdentity != null && userIdentity.isExists() && userIdentity.isActive())) {
@@ -216,7 +219,7 @@ public class whispeakAuthNode extends AbstractDecisionNode {
             }
         } catch (IdRepoException | SSOException e) {
             logger.warn("Error locating user '{}' ", username, e);
-        }
+        }*/
         return goTo(false).build();
     }
 
