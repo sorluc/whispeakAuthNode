@@ -65,11 +65,6 @@ public class whispeakAuthNode extends AbstractDecisionNode {
             return WhispeakAction.AUTH;
         }
 
-		@Attribute(order = 55)
-		String whispeakAction();
-
-
-
         /**
          * Whispeak APIP Key
          */
