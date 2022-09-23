@@ -24,10 +24,14 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.ResourceBundle;
+import java.util.Set;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -172,11 +176,25 @@ public class whispeakAuthNode //extends AbstractDecisionNode {
             return "";
         }
         /**
+         * Title to display on the page where the voice is recorded 
+         */
+        @Attribute(order = 1300)
+        default String pageTitle() {
+            return "Record your voice";
+        }
+        /**
+         * Message to display on the page where the voice is recorded 
+         */
+        @Attribute(order = 1400)
+        default String pageMessage() {
+            return "Please read the text below";
+        }
+        /**
          * The script to send to client to record the voice to enroll
          *
          * @return The script configuration.
          *
-        @Attribute(order = 1300)
+        @Attribute(order = 1500)
         @ScriptContext(AUTHENTICATION_TREE_DECISION_NODE_NAME)
         default Script wsEnrollScript() {
             return Script.EMPTY_SCRIPT;
@@ -187,7 +205,7 @@ public class whispeakAuthNode //extends AbstractDecisionNode {
          *
          * @return The script configuration.
          *
-        @Attribute(order = 1300)
+        @Attribute(order = 1600)
         @ScriptContext(AUTHENTICATION_TREE_DECISION_NODE_NAME)
         default Script wsAuthScript() {
             return Script.EMPTY_SCRIPT;
@@ -225,7 +243,7 @@ public class whispeakAuthNode //extends AbstractDecisionNode {
 
         if (state.isDefined(org.forgerock.openam.auth.node.api.SharedStateConstants.USERNAME)) {
             username = state.get(org.forgerock.openam.auth.node.api.SharedStateConstants.USERNAME).asString();
-            logger.error("whispeakAuthNode - Process - username: " + username);
+            logger.debug("whispeakAuthNode - Process - username: " + username);
 
             userIdentity = IdUtils.getIdentity(username, realm.asDN());
             try {
@@ -238,48 +256,56 @@ public class whispeakAuthNode //extends AbstractDecisionNode {
                 logger.error("whispeakAuthNode - Process: SSOException | IdRepoException: " + e.getMessage());
                 return Action.goTo(whispeakAuthNodeOutcome.FALSE.getOutcome().id).build();
             }
-            logger.error("whispeakAuthNode - Process - wsId: " + wsId);
+            logger.debug("whispeakAuthNode - Process - wsId: " + wsId);
 
 
         } else {
             logger.error("whispeakAuthNode - Process - Username is required ");
             return Action.goTo(whispeakAuthNodeOutcome.FALSE.getOutcome().id).build();
         }
-		
-        if (config.actionSelection().getValue().equals(WhispeakAction.AUTH.getValue())) {
-            logger.debug("whispeakAuthNode - Process - AUTH Action");
+
+        /* 
+         *  If there is no callback, then first of all call Whispeak for a token and 
+         *  then display record your voice page
+         */ 
+		if (context.getAllCallbacks().isEmpty() && 
+            !config.actionSelection().getValue().equals(WhispeakAction.UNENROLL.getValue())){
+            logger.debug("whispeakAuthNode - Process - context.getAllCallbacks().isEmpty(): "+
+                context.getAllCallbacks().isEmpty()
+            );
+            /*
+             * Call WhiSpeak REST API To get a token and ASR phrase
+             */
+            String wsActionURI = (config.actionSelection().getValue().equals(WhispeakAction.AUTH.getValue()))?config.wsAuthURI():config.wsEnrollURI();
+
+            JSONObject wsResp = callWhiSpeak(
+                config.wsAPIKey(),config.wsCustomer(),config.wsApplication(),
+                config.wsAppConfig(), config.wsBaseURI(), wsActionURI,
+                config.wsStoreSignInFR(), "","", "", 
+                context.request.locales.getPreferredLocale().toLanguageTag());
+            /*  
+             * Return the ScriptTextOutputCallback and the 
+             * HiddenValueCallback callbacks to dispay the
+             * voice recorder to the enduser and send it in
+             * the hidden value "clientScrpitOutputData". 
+             */
+            HiddenValueCallback hiddenValueCallback = new HiddenValueCallback(
+                bundle.getString("hiddenValueCallback.value"), "false");
+            try{
+                state.putShared("voiceRecordedtoken", wsResp.get("token").toString());
+                ScriptTextOutputCallback scriptTextOutputCallback = 
+                    new ScriptTextOutputCallback(createScript( wsResp.get("text").toString(),config.pageTitle(),config.pageMessage()));
+                return Action.send(hiddenValueCallback,scriptTextOutputCallback).build();
+             } catch (JSONException e) {
+                logger.error("whispeakAuthNode - Process: JSONException " + e.getMessage());
+                return Action.goTo(whispeakAuthNodeOutcome.FALSE.getOutcome().id).build();
+            }
             
-            if (context.getAllCallbacks().isEmpty()){
-                logger.debug("whispeakAuthNode - Process - context.getAllCallbacks().isEmpty(): "+
-                    context.getAllCallbacks().isEmpty()
-                );
-                /*
-                 * Call WhiSpeak REST API To get A token and ASR phrase
-                 */
-                JSONObject wsResp = callWhiSpeak(
-                    config.wsAPIKey(),config.wsCustomer(),config.wsApplication(),
-                    config.wsAppConfig(), config.wsBaseURI(), "/auth",
-                    config.wsStoreSignInFR(), "","", "", 
-                    context.request.locales.getPreferredLocale().toLanguageTag());
-				/*  
-                 * Return the ScriptTextOutputCallback and the 
-                 * HiddenValueCallback callbacks to dispay the
-                 * voice recorder to the enduser and send it in
-                 * the hidden value "clientScrpitOutputData". 
-				 */
-                HiddenValueCallback hiddenValueCallback = new HiddenValueCallback(
-                    bundle.getString("hiddenValueCallback.value"), "false");
-                try{
-                    state.putShared("voiceRecordedtoken", wsResp.get("token").toString());
-                    ScriptTextOutputCallback scriptTextOutputCallback = 
-                        new ScriptTextOutputCallback(createScript( wsResp.get("text").toString()));
-                    return Action.send(hiddenValueCallback,scriptTextOutputCallback).build();
-                 } catch (JSONException e) {
-                    logger.error("whispeakAuthNode - Process: JSONException " + e.getMessage());
-                    return Action.goTo(whispeakAuthNodeOutcome.FALSE.getOutcome().id).build();
-                }
-				
-            } else {
+        } else {
+            if (config.actionSelection().getValue().equals(WhispeakAction.AUTH.getValue())||
+                config.actionSelection().getValue().equals(WhispeakAction.ENROLL.getValue())) {
+                logger.debug("whispeakAuthNode - Process - AUTH or ENROLL Action");
+             
                 Optional<String> result = context.getCallback(HiddenValueCallback.class)
                         .map(HiddenValueCallback::getValue).filter(scriptOutput -> !Strings.isNullOrEmpty(scriptOutput));
                 String recordedVoice = "";
@@ -289,17 +315,41 @@ public class whispeakAuthNode //extends AbstractDecisionNode {
                 /*
                  * Call WhiSpeak REST API with the token and the voice to check it
                  */
+
+                String wsActionURI = (config.actionSelection().getValue().equals(WhispeakAction.AUTH.getValue()))?config.wsAuthURI():config.wsEnrollURI();
+
                 JSONObject wsResult = callWhiSpeak(
                     config.wsAPIKey(),config.wsCustomer(),config.wsApplication(),
-                    config.wsAppConfig(), config.wsBaseURI(), "/auth", config.wsStoreSignInFR(), 
+                    config.wsAppConfig(), config.wsBaseURI(),wsActionURI, config.wsStoreSignInFR(), 
                     state.get("voiceRecordedtoken").toString().replace("\"", ""), 
                     wsId, recordedVoice, context.request.locales.getPreferredLocale().toLanguageTag());
                 
-                logger.error("whispeakAuthNode - Process - wsResult: " + wsResult);
+                logger.debug("whispeakAuthNode - Process - wsResult: " + wsResult);
 
                 try {
                     if (!wsResult.has("errorCode")){
+                        if (config.actionSelection().getValue().equals(WhispeakAction.ENROLL.getValue())){
+                            // Store the id of the signature if we are enrolling
+                            logger.debug("whispeakAuthNode - Process - wsResult.get(\"id\"): " + wsResult.get("id"));
+
+                            Map<String, Set<String>> map = new HashMap<String, Set<String>>() {{
+                                put(config.wsIdAttributeInProfile(), Collections.singleton(wsResult.get("id").toString()));
+                            }};
+                    
+                            //Try and save against the user profile
+                            try {
+                                userIdentity.setAttributes(map);
+                                userIdentity.store();
+                            } catch (IdRepoException | SSOException e) {
+                                logger.error("whispeakAuthNode - Process: SSOException | IdRepoException: " + e.getMessage());
+                                return Action.goTo(whispeakAuthNodeOutcome.FALSE.getOutcome().id).build();
+                            }
+                        } else {
+                            // Do nothing if we just authenticate
+                        }
                         return Action.goTo(whispeakAuthNodeOutcome.TRUE.getOutcome().id).build();
+                    } else if (wsResult.getInt("errorCode") == 400){
+                        return Action.goTo(whispeakAuthNodeOutcome.UNREGISTERED.getOutcome().id).build();
                     } else if (wsResult.getInt("errorCode") == 404){
                         return Action.goTo(whispeakAuthNodeOutcome.UNREGISTERED.getOutcome().id).build();
                     } else {
@@ -309,145 +359,16 @@ public class whispeakAuthNode //extends AbstractDecisionNode {
                     logger.error("whispeakAuthNode - Process: JSONException " + e.getMessage());
                     return Action.goTo(whispeakAuthNodeOutcome.FALSE.getOutcome().id).build();
                 }
+
+            } else if (config.actionSelection().getValue().equals(WhispeakAction.UNENROLL.getValue())) {
+                logger.debug("whispeakAuthNode - Process - UNENROLL Action");
+            } else {
+                return Action.goTo(whispeakAuthNodeOutcome.FALSE.getOutcome().id).build();
             }
-        } else if (config.actionSelection().getValue().equals(WhispeakAction.ENROLL.getValue())) {
-            logger.debug("whispeakAuthNode - Process - ENROLL Action");
-/* 
-            var myCustomer = 'forgerock';
-            var myApplication = 'no-asr/xvector30---098';
-            myApplication = 'with-asr/with-asr-20-8-3';
-            function createScript(text) {
-                return String("\n\
-                var div = document.createElement('div'); \n\
-                div.id = 'voiceRecorder'; \n\
-                div.innerHTML = '<div class=\"container\">' +\n\
-                                    '<h2>Record your voice</h2>' + \n\
-                                    '<span style=\"font-size:20px;\">Please read the text below to register:</span>' + \n\
-                                    '<div style=\"font-size:15px; font-style: italic;text-align:left\">' +\n\
-                                    " + "'" + text + "' +" +
-                                    "\n\
-                                    '</div><br/><audio id=\"recorder\" muted hidden></audio>' +\n\
-                                    '<div>' +\n\
-                                        '<button id=\"start\">Record</button><button id=\"stop\">Stop Recording</button>' +\n\
-                                    '</div><br/>' +\n\
-                                    '<span>Saved Recording</span>' +\n\
-                                    '<audio id=\"player\" controls></audio>' +\n\
-                                    '<br/>' +\n\
-                                '</div>'; \n\
-                var cb = document.getElementById('callbacksPanel'); \n\
-                cb.insertBefore(div, cb.firstChild); \n\
-                class VoiceRecorder { \n\
-                    constructor() { \n\
-                        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {\n\
-                            console.log('getUserMedia supported')\n\
-                        } else {\n\
-                            console.log('getUserMedia is not supported on your browser!')\n\
-                        }\n\
-                        this.mediaRecorder\n\
-                        this.stream\n\
-                        this.chunks = []\n\
-                        this.isRecording = false\n\
-                        this.recorderRef = document.querySelector('#recorder')\n\
-                        this.playerRef = document.querySelector('#player')\n\
-                        this.startRef = document.querySelector('#start')\n\
-                        this.stopRef = document.querySelector('#stop')\n\
-                        this.startRef.onclick = this.startRecording.bind(this)\n\
-                        this.stopRef.onclick = this.stopRecording.bind(this)\n\
-                        this.constraints = {\n\
-                            audio: true,\n\
-                            video: false\n\
-                        }\n\
-                    }\n\
-                    handleSuccess(stream) {\n\
-                        this.stream = stream\n\
-                        this.stream.oninactive = () => {\n\
-                            console.log('Stream ended!')\n\
-                        };\n\
-                        this.recorderRef.srcObject = this.stream\n\
-                        this.mediaRecorder = new MediaRecorder(this.stream)\n\
-                        this.mediaRecorder.ondataavailable = this.onMediaRecorderDataAvailable.bind(this)\n\
-                        this.mediaRecorder.onstop = this.onMediaRecorderStop.bind(this)\n\
-                        this.recorderRef.play()\n\
-                        this.mediaRecorder.start()\n\
-                    }\n\
-                    handleError(error) {\n\
-                        console.log('navigator.getUserMedia error: ', error)\n\
-                    }\n\
-                    onMediaRecorderDataAvailable(e) { this.chunks.push(e.data) }\n\
-                    onMediaRecorderStop(e) { \n\
-                        const blob = new Blob(this.chunks, { 'type': 'audio/wav' })\n\
-                        const audioURL = window.URL.createObjectURL(blob)\n\
-                        this.playerRef.src = audioURL\n\
-                        this.chunks = []\n\
-                        this.stream.getAudioTracks().forEach(track => track.stop())\n\
-                        this.stream = null\n\
-                        var reader = new FileReader();\n\
-                        reader.readAsDataURL(blob);\n\
-                        reader.onloadend = function() {\n\
-                            var base64data = reader.result;\n\
-                            document.getElementById(\"clientScriptOutputData\").value = base64data;\n\
-                            document.getElementById(\"loginButton_0\").className = \"btn btn-block mt-3 btn-primary\";\n\
-                            document.getElementById(\"loginButton_0\").removeAttribute(\"hidden\");\n\
-                            document.getElementById(\"loginButton_0\").onclick =  function() {  document.getElementById(\"voiceRecorder\").remove(); };\n\
-                        }\n\
-                    }\n\
-                    startRecording() {\n\
-                        if (this.isRecording) return\n\
-                        this.isRecording = true\n\
-                        this.startRef.innerHTML = 'Recording...'\n\
-                        this.playerRef.src = ''\n\
-                        navigator.mediaDevices\n\
-                            .getUserMedia(this.constraints)\n\
-                            .then(this.handleSuccess.bind(this))\n\
-                            .catch(this.handleError.bind(this))\n\
-                    }\n\
-                    stopRecording() {\n\
-                        if (!this.isRecording) return\n\
-                        this.isRecording = false\n\
-                        this.startRef.innerHTML = 'Record'\n\
-                        this.recorderRef.pause()\n\
-                        this.mediaRecorder.stop()\n\
-                    }\n\
-                }\n\
-                window.voiceRecorder = new VoiceRecorder()\n\
-            ");
-            }
-            
-            var fr = JavaImporter(
-                org.forgerock.openam.auth.node.api,
-                com.sun.identity.authentication.callbacks.ScriptTextOutputCallback,
-                com.sun.identity.authentication.callbacks.HiddenValueCallback
-            );
-            
-            with (fr) {
-                if (callbacks.isEmpty()) {
-                    var requestGetToken = new org.forgerock.http.protocol.Request();
-                    requestGetToken.setMethod('GET');
-                    requestGetToken.setUri('https://' + myCustomer + '.whispeak.io/v1/apps/' + myApplication + '/enroll');
-                    requestGetToken.getHeaders().add("Authorization","Bearer " + apiKey);
-                    requestGetToken.getHeaders().add("Content-Type","application/json");
-                    requestGetToken.getHeaders().add("Accept-Language","fr");
-                    
-                    var responseGetToken = httpClient.send(requestGetToken).get();
-                    var jsonResultGetToken = JSON.parse(responseGetToken.getEntity().getString())
-                    token = jsonResultGetToken.token;
-                    text = jsonResultGetToken.text;
-                    sharedState.put("voiceRecordedtoken", token);
-            
-                      action = Action.send(new HiddenValueCallback("clientScriptOutputData", "false"),
-                                         new ScriptTextOutputCallback(createScript(text))).build();
-                } else {
-                      sharedState.put("voiceRecordedBlob", String(callbacks.get(0).getValue()));
-                      action = Action.goTo("true").build();
-                }
-            }
-*/
-        } else if (config.actionSelection().getValue().equals(WhispeakAction.UNENROLL.getValue())) {
-            logger.debug("whispeakAuthNode - Process - UNENROLL Action");
-        } else {
-            return Action.goTo(whispeakAuthNodeOutcome.FALSE.getOutcome().id).build();
+
         }
-            return Action.goTo(whispeakAuthNodeOutcome.FALSE.getOutcome().id).build();
+        return Action.goTo(whispeakAuthNodeOutcome.FALSE.getOutcome().id).build();
+
     }
 
     public enum WhispeakAction {
@@ -457,7 +378,9 @@ public class whispeakAuthNode //extends AbstractDecisionNode {
 		ENROLL("Enroll"),
 		/** UNENROLL */
 		UNENROLL("Unenroll");
+
 		private String value;
+
 		/**
 		 * The constructor.
 		 * @param value the value as a string.
@@ -465,6 +388,7 @@ public class whispeakAuthNode //extends AbstractDecisionNode {
 		WhispeakAction(String value) {
 			this.value = value;
 		}
+
 		/**
 		 * Gets the action preference value.
 		 * @return the value.
@@ -472,9 +396,10 @@ public class whispeakAuthNode //extends AbstractDecisionNode {
 		public String getValue() {
 			return value;
 		}
+
 	}
 
-    private String createScript (String text) {
+    private String createScript (String text, String title,String message) {
         /*
          * TODO load the script from an external js file.
          */
@@ -482,8 +407,8 @@ public class whispeakAuthNode //extends AbstractDecisionNode {
                     "div.id = 'voiceRecorder';\n" +
                     "if(document.getElementById('callbacksPanel') && document.getElementById('callbacksPanel').value != ''){\n"+
                         "div.innerHTML = '<div class=\\\"container\\\">'+" +
-                                            "'<h2>Record your voice</h2>'+" +
-                                            "'<span style=\\\"font-size:20px;\\\">Please read the text below:</span>'+" +
+                                            "'<h2>" + title + "</h2>'+" +
+                                            "'<span style=\\\"font-size:20px;\\\">" + message + "</span>'+" +
                                             "'<div style=\\\"font-size:15px; font-style: italic;text-align:left\\\">'+" +
                                                 "'" + text + "' +" +
                                             "'</div><br/><audio id=\\\"recorder\\\" muted hidden></audio>'+" +
@@ -497,8 +422,8 @@ public class whispeakAuthNode //extends AbstractDecisionNode {
                         "var cb = document.getElementById('callbacksPanel');\n" +
                     "} else {\n" +
                         "div.innerHTML = '<div class=\\\"container\\\" style=\\\"width:50%\\\">'+" +
-                                            "'<h2>Record your voice</h2>'+" +
-                                            "'<span style=\\\"font-size:20px;\\\">Please read the text below:</span>'+" +
+                                            "'<h2>" + title + "</h2>'+" +
+                                            "'<span style=\\\"font-size:20px;\\\">" + message + "</span>'+" +
                                             "'<div style=\\\"font-size:15px; font-style: italic;text-align:left\\\">'+" +
                                                 "'" + text + "' +" +
                                             "'</div><br/><audio id=\\\"recorder\\\" muted hidden></audio>'+" +
@@ -624,7 +549,8 @@ public class whispeakAuthNode //extends AbstractDecisionNode {
             // If voice is Blank, then it means we are just doing a Get to get an API 
             // Session token and an ASR text
             String strURL = "https://" + wsCustomer + wsBaseURI + wsApplication + '/' + wsAppConfig + wsActionURI;
-		    logger.debug("whispeakAuthNode - callWhiSpeak - URL: " + strURL);
+		    logger.error
+            ("whispeakAuthNode - callWhiSpeak - URL: " + strURL);
             try{
                 URL url = new URL(strURL);
                 conn = (HttpsURLConnection) url.openConnection();
@@ -679,12 +605,18 @@ public class whispeakAuthNode //extends AbstractDecisionNode {
                 // Create the multipart/form-data
                 String boundary = new String("----WebKitFormBoundary" + (new Date()).getTime());
                 conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
-                String rq = new String("--" + boundary + "\r\nContent-Disposition:form-data;name=\"file\";filename=\"file.wav\"\r\nContent-Type:audio/wav\r\n\r\n" + 
-                decodedString +
-                "\r\n--" + boundary + "\r\nContent-Disposition:form-data;name=\"id\"\r\n\r\n" +
-                wsId +
-                "\r\n--" + boundary + "--\r\n");
+                String rq =null; 
+                
+                if (wsId.isEmpty()){
+                    rq = new String("--" + boundary + "\r\nContent-Disposition:form-data;name=\"file\";filename=\"file.wav\"\r\nContent-Type:audio/wav\r\n\r\n" + 
+                            decodedString +"\r\n--" + boundary + "--\r\n");
+                } else {
+                    rq = new String("--" + boundary + "\r\nContent-Disposition:form-data;name=\"file\";filename=\"file.wav\"\r\nContent-Type:audio/wav\r\n\r\n" + 
+                            decodedString + "\r\n--" + boundary + "\r\nContent-Disposition:form-data;name=\"id\"\r\n\r\n" +
+                            wsId + "\r\n--" + boundary + "--\r\n");
+                }
                 logger.debug("whispeakAuthNode - callWhiSpeak - rq: " + rq);
+
                 // Send post request
                 wr = new DataOutputStream(conn.getOutputStream());
                 wr.writeBytes(rq);
@@ -694,16 +626,19 @@ public class whispeakAuthNode //extends AbstractDecisionNode {
                     br = new BufferedReader(new InputStreamReader((conn.getInputStream())));
                     JSONTokener tokener = new JSONTokener(br);
                     wsResp = new JSONObject(tokener);
-                } else if (conn.getResponseCode() == HttpURLConnection.HTTP_NOT_FOUND || conn.getResponseCode() == HttpURLConnection.HTTP_BAD_REQUEST){    
-                    wsResp = new JSONObject();
-                    wsResp.put("errorCode", conn.getResponseCode());
-                    wsResp.put("errorMessage", "Signature not found.");
-                    logger.error("whispeakAuthNode - callWhiSpeak - HTTP error code: " + conn.getResponseCode());
+                } else if (conn.getResponseCode() == HttpURLConnection.HTTP_CREATED) {
+                    br = new BufferedReader(new InputStreamReader((conn.getInputStream())));
+                    JSONTokener tokener = new JSONTokener(br);
+                    wsResp = new JSONObject(tokener);
+                } else if (conn.getResponseCode() == HttpURLConnection.HTTP_ACCEPTED) {
+                    br = new BufferedReader(new InputStreamReader((conn.getInputStream())));
+                    JSONTokener tokener = new JSONTokener(br);
+                    wsResp = new JSONObject(tokener);
                 } else {
                     wsResp = new JSONObject();
                     wsResp.put("errorCode", conn.getResponseCode());
-                    wsResp.put("errorMessage", "Voice recognition failed.");
-                    logger.error("whispeakAuthNode - callWhiSpeak - HTTP error code: " + conn.getResponseCode());
+                    wsResp.put("errorMessage", conn.getResponseMessage());
+                    logger.debug("whispeakAuthNode - callWhiSpeak - HTTP error code: " + conn.getResponseCode() + " and message: " + conn.getResponseMessage());
                 }
             } catch (JSONException e) {
                 logger.error("whispeakAuthNode - callWhiSpeak - JSONException " + e.getMessage());
