@@ -304,7 +304,7 @@ public class whispeakAuthNode //extends AbstractDecisionNode {
         } else {
             if (config.actionSelection().getValue().equals(WhispeakAction.AUTH.getValue())||
                 config.actionSelection().getValue().equals(WhispeakAction.ENROLL.getValue())) {
-                logger.debug("whispeakAuthNode - Process - AUTH or ENROLL Action");
+                logger.error("whispeakAuthNode - Process - AUTH or ENROLL Action");
              
                 Optional<String> result = context.getCallback(HiddenValueCallback.class)
                         .map(HiddenValueCallback::getValue).filter(scriptOutput -> !Strings.isNullOrEmpty(scriptOutput));
@@ -324,7 +324,9 @@ public class whispeakAuthNode //extends AbstractDecisionNode {
                     state.get("voiceRecordedtoken").toString().replace("\"", ""), 
                     wsId, recordedVoice, context.request.locales.getPreferredLocale().toLanguageTag());
                 
-                logger.debug("whispeakAuthNode - Process - wsResult: " + wsResult);
+                state.remove("voiceRecordedtoken");
+
+                logger.error("whispeakAuthNode - Process - wsResult: " + wsResult);
 
                 try {
                     if (!wsResult.has("errorCode")){
@@ -403,6 +405,7 @@ public class whispeakAuthNode //extends AbstractDecisionNode {
         /*
          * TODO load the script from an external js file.
          */
+        String rand = new String (""+(new Date()).getTime());
         String script = "var div = document.createElement('div');\n" +
                     "div.id = 'voiceRecorder';\n" +
                     "if(document.getElementById('callbacksPanel') && document.getElementById('callbacksPanel').value != ''){\n"+
@@ -438,7 +441,7 @@ public class whispeakAuthNode //extends AbstractDecisionNode {
                         "document.getElementsByClassName('form login')[0].hidden = true;\n" +
                     "}\n" +
                     "cb.insertBefore(div, cb.firstChild);\n" +
-                    "class VoiceRecorder {\n" +
+                    "class VoiceRecorder" + rand + " {\n" +
                     "    constructor() {\n" +
                     "        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {\n" +
                     "            console.log('getUserMedia supported')\n" +
@@ -512,7 +515,7 @@ public class whispeakAuthNode //extends AbstractDecisionNode {
                     "        this.mediaRecorder.stop()\n" +
                     "    }\n" +
                     "}\n" +
-                    "window.voiceRecorder = new VoiceRecorder()";
+                    "window.voiceRecorder = new VoiceRecorder" + rand + "()";
 		logger.trace("whispeakAuthNode - createScript - script: " + script);
         return script;
     }
@@ -549,8 +552,7 @@ public class whispeakAuthNode //extends AbstractDecisionNode {
             // If voice is Blank, then it means we are just doing a Get to get an API 
             // Session token and an ASR text
             String strURL = "https://" + wsCustomer + wsBaseURI + wsApplication + '/' + wsAppConfig + wsActionURI;
-		    logger.error
-            ("whispeakAuthNode - callWhiSpeak - URL: " + strURL);
+		    logger.error ("whispeakAuthNode - callWhiSpeak - URL: " + strURL);
             try{
                 URL url = new URL(strURL);
                 conn = (HttpsURLConnection) url.openConnection();
