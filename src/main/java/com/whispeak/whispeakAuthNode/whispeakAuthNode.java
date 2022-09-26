@@ -375,11 +375,11 @@ public class whispeakAuthNode //extends AbstractDecisionNode {
 
     public enum WhispeakAction {
 		/** Authenticate */
-		AUTH("Auth"),
+		AUTH("AUTH"),
 		/** Enroll */
-		ENROLL("Enroll"),
+		ENROLL("ENROLL"),
 		/** UNENROLL */
-		UNENROLL("Unenroll");
+		UNENROLL("UNENROLL");
 
 		private String value;
 
@@ -712,8 +712,15 @@ public class whispeakAuthNode //extends AbstractDecisionNode {
 		public List<Outcome> getOutcomes(PreferredLocales locales, JsonValue nodeAttributes) {
 			List<Outcome> outcomes = new ArrayList<>();
 			outcomes.add(whispeakAuthNodeOutcome.TRUE.getOutcome());
-			outcomes.add(whispeakAuthNodeOutcome.UNREGISTERED.getOutcome());
 			outcomes.add(whispeakAuthNodeOutcome.FALSE.getOutcome());
+
+            if (nodeAttributes.isNotNull()) {
+				// nodeAttributes is null when the node is created
+				if (nodeAttributes.get("actionSelection").asString().equals(WhispeakAction.AUTH.getValue()) ||
+                    nodeAttributes.get("actionSelection").asString().equals(WhispeakAction.UNENROLL.getValue())) {
+                            outcomes.add(whispeakAuthNodeOutcome.UNREGISTERED.getOutcome());
+				}
+			}
 			return outcomes;
 		}  
 	}
